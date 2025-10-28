@@ -78,8 +78,11 @@ function loadPreferencesAndData() {
     const cachedCoords = JSON.parse(localStorage.getItem('geocodedLocations'));
     const visitedStatus = JSON.parse(localStorage.getItem('visitedLocations'));
 
-    if (visitedStatus && visitedStatus.length === locations.length) {
-        locations.forEach((loc, index) => loc.visited = visitedStatus[index]);
+    // Lade visitedLocations als Objekt mit Adresse als Schlüssel
+    if (visitedStatus && typeof visitedStatus === 'object') {
+        locations.forEach(loc => {
+            loc.visited = visitedStatus[loc.address] === true;
+        });
     }
 
     if (cachedCoords && cachedCoords.length === locations.length) {
@@ -139,7 +142,12 @@ function renderLocationsList() {
         locations.forEach(loc => {
             loc.distance = loc.coords ? currentLocation.distanceTo(L.latLng(loc.coords.lat, loc.coords.lon)) : Infinity;
         });
-        locations.sort((a, b) => a.distance - b.distance);
+        // Sortiere nach Entfernung, aber besuchte Orte kommen ans Ende
+        locations.sort((a, b) => {
+            if (a.visited && !b.visited) return 1;
+            if (!a.visited && b.visited) return -1;
+            return a.distance - b.distance;
+        });
     }
 
     locationsListElement.innerHTML = '';
@@ -207,6 +215,11 @@ function addEventListenersToListItems() {
 
 // Speichert den "besucht"-Status im Local Storage
 function saveVisitedState() {
-    const visitedStatus = locations.map(loc => loc.visited);
+    const visitedStatus = {};
+    locations.forEach(loc => {
+        if (loc.visited) {
+            visitedStatus[loc.address] = true;
+        }
+    });
     localStorage.setItem('visitedLocations', JSON.stringify(visitedStatus));
 }
