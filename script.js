@@ -16,6 +16,7 @@ const hideVisitedCheckbox = document.getElementById('hide-visited');
 const statusElement = document.getElementById('status');
 const refreshButton = document.getElementById('refresh-btn');
 const mapElement = document.getElementById('map');
+const overlayToggle = document.getElementById('overlay-toggle');
 let map, userMarker;
 let currentLocation = null;
 let locationMarkers = {}; // Objekt zum Speichern der Marker
@@ -28,11 +29,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
     hideVisitedCheckbox.addEventListener('change', () => {
         localStorage.setItem('hideVisitedPreference', hideVisitedCheckbox.checked);
+        updateMapMarkers();
         renderLocationsList();
     });
     refreshButton.addEventListener('click', () => {
         statusElement.textContent = "Standort wird neu ermittelt...";
         getUserLocation();
+    });
+    
+    // Mobile overlay toggle
+    overlayToggle.addEventListener('click', () => {
+        locationsListElement.classList.toggle('open');
+    });
+    
+    // Close overlay when clicking on "Auf Karte zeigen" button
+    locationsListElement.addEventListener('click', (e) => {
+        if (e.target.classList.contains('map-link')) {
+            locationsListElement.classList.remove('open');
+        }
+    });
+    
+    // Handle swipe gestures for mobile overlay
+    let startY = 0;
+    let currentY = 0;
+    
+    locationsListElement.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+    }, { passive: true });
+    
+    locationsListElement.addEventListener('touchmove', (e) => {
+        currentY = e.touches[0].clientY;
+        const diff = startY - currentY;
+        
+        // Only allow closing by swiping down when at the top of the scroll
+        if (diff < 0 && locationsListElement.scrollTop === 0) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    locationsListElement.addEventListener('touchend', (e) => {
+        const diff = startY - currentY;
+        
+        // Swipe down to close (when at top of scroll)
+        if (diff < -50 && locationsListElement.scrollTop === 0) {
+            locationsListElement.classList.remove('open');
+        }
+        // Swipe up to open
+        else if (diff > 50 && !locationsListElement.classList.contains('open')) {
+            locationsListElement.classList.add('open');
+        }
     });
 });
 
@@ -104,6 +149,24 @@ function addMarkersToMap() {
             const marker = L.marker([location.coords.lat, location.coords.lon]).addTo(map)
                 .bindPopup(`<b>Klasse ${location.class} - ${location.name}</b><br>${location.address}`);
             locationMarkers[location.address] = marker; // Marker speichern
+        }
+    });
+    updateMapMarkers(); // Initiale Filterung basierend auf den Einstellungen
+}
+
+// Aktualisiert die Sichtbarkeit der Marker basierend auf dem "hide visited" Status
+function updateMapMarkers() {
+    const hideVisited = hideVisitedCheckbox.checked;
+    locations.forEach(location => {
+        const marker = locationMarkers[location.address];
+        if (marker) {
+            if (hideVisited && location.visited) {
+                map.removeLayer(marker);
+            } else {
+                if (!map.hasLayer(marker)) {
+                    map.addLayer(marker);
+                }
+            }
         }
     });
 }
@@ -191,6 +254,7 @@ function addEventListenersToListItems() {
             if (changedLocation) {
                 changedLocation.visited = e.target.checked;
                 saveVisitedState();
+                updateMapMarkers();
                 renderLocationsList();
             }
         });
