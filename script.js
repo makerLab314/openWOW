@@ -162,7 +162,7 @@ function renderLocationsList() {
                     <h3>Klasse ${location.class} (${location.name})</h3>
                     <p>${location.address}${noteText}</p>
                     <div class="actions">
-                        <button class="map-link" data-lat="${location.coords?.lat}" data-lon="${location.coords?.lon}">Auf Karte zeigen</button>
+                        <button class="map-link" data-lat="${location.coords?.lat}" data-lon="${location.coords?.lon}" data-address="${location.address}">Auf Karte zeigen</button>
                         <a href="${mapsUrl}" target="_blank" class="gmaps-link">Navigation</a>
                     </div>
                 </div>
@@ -192,7 +192,7 @@ function addEventListenersToListItems() {
         button.addEventListener('click', (e) => {
             const lat = e.target.getAttribute('data-lat');
             const lon = e.target.getAttribute('data-lon');
-            const address = e.target.closest('.info').querySelector('p').textContent.split(' (')[0];
+            const address = e.target.getAttribute('data-address');
 
             if (lat && lon) {
                 map.setView([lat, lon], 17); // Zoom näher ran
