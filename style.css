@@ -3,6 +3,7 @@ body {
     margin: 0;
     background-color: #f4f4f4;
     color: #333;
+    scroll-behavior: smooth; /* Für sanftes Scrollen */
 }
 
 .container {
@@ -32,7 +33,7 @@ h1 {
     padding: 10px;
     background-color: #fff;
     border-radius: 8px;
-    margin-bottom: 5px; /* Verringert */
+    margin-bottom: 5px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
@@ -60,7 +61,7 @@ h1 {
 #status {
     font-size: 0.9em;
     color: #666;
-    margin: 0 0 15px 5px; /* Angepasst */
+    margin: 0 0 15px 5px;
 }
 
 .location-item {
@@ -70,12 +71,18 @@ h1 {
     margin-bottom: 10px;
     display: flex;
     align-items: center;
-    transition: background-color 0.3s;
+    transition: all 0.3s;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.location-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .location-item.visited {
     background-color: #f0f0f0;
+    opacity: 0.8;
 }
 
 .location-item.visited .info {
@@ -111,15 +118,37 @@ h1 {
     margin-bottom: 5px;
 }
 
-.gmaps-link {
-    display: inline-block;
-    margin-top: 8px;
-    font-size: 0.9em;
-    color: #007bff;
-    text-decoration: none;
-    font-weight: bold;
+.actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
 }
 
+.map-link, .gmaps-link {
+    display: inline-block;
+    font-size: 0.9em;
+    text-decoration: none;
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+.gmaps-link {
+    color: #34A853;
+    background-color: #e8f5e9;
+}
 .gmaps-link:hover {
-    text-decoration: underline;
+    background-color: #c8e6c9;
+}
+
+.map-link {
+    color: #4285F4;
+    background-color: #e8f0fe;
+    border: none;
+    cursor: pointer;
+}
+.map-link:hover {
+    background-color: #d_2e6ff;
 }
