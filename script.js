@@ -68,7 +68,7 @@ function setupMobileOverlay() {
             <input type="checkbox" id="hide-visited-mobile">
             Besuchte Standorte ausblenden
         </label>
-        <button id="refresh-btn-mobile" style="margin-top: 10px; width: 100%; padding: 10px; border: 1px solid #007bff; background-color: #007bff; color: white; border-radius: 5px; cursor: pointer; font-size: 0.9em;">Standort aktualisieren</button>
+        <button id="refresh-btn-mobile">Standort aktualisieren</button>
     `;
     
     const scrollContainer = document.createElement('div');

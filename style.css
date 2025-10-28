@@ -277,6 +277,35 @@ h1 {
         background-color: white;
     }
     
+    .mobile-controls label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    
+    .mobile-controls input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
+    }
+    
+    #refresh-btn-mobile {
+        margin-top: 10px;
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #007bff;
+        background-color: #007bff;
+        color: white;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background-color 0.2s;
+    }
+    
+    #refresh-btn-mobile:active {
+        background-color: #0056b3;
+    }
+    
     .locations-scroll-container {
         display: block;
         overflow-y: auto;
