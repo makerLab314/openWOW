@@ -1,4 +1,4 @@
-// Standorte aus Ihrer Liste
+// Standorte (Grunddaten)
 const locations = [
     { address: "Berger Straße 174, Frankfurt am Main", class: "11a", name: "Markus Just", visited: false },
     { address: "Oeder Weg 49, Frankfurt am Main", class: "10a", name: "Bertold Breig", visited: false },
@@ -14,23 +14,26 @@ const locations = [
 const locationsListElement = document.getElementById('locations-list');
 const hideVisitedCheckbox = document.getElementById('hide-visited');
 const statusElement = document.getElementById('status');
+const refreshButton = document.getElementById('refresh-btn');
 let map, userMarker;
 let currentLocation = null;
 
 // Initialisiert die App, sobald das DOM geladen ist
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
-    loadVisitedState();
-    geocodeAllLocations();
+    loadLocationsAndState(); // Lädt Koordinaten und "besucht"-Status
     getUserLocation();
 
     hideVisitedCheckbox.addEventListener('change', renderLocationsList);
+    refreshButton.addEventListener('click', () => {
+        statusElement.textContent = "Standort wird neu ermittelt...";
+        getUserLocation();
+    });
 });
 
 // Initialisiert die Leaflet-Karte
 function initMap() {
-    map = L.map('map').setView([50.1109, 8.6821], 12); // Standard-Zentrum (Frankfurt)
-
+    map = L.map('map').setView([50.1109, 8.6821], 12); // Frankfurt
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
@@ -42,21 +45,12 @@ function getUserLocation() {
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 currentLocation = L.latLng(position.coords.latitude, position.coords.longitude);
-                
-                statusElement.textContent = "Standort gefunden!";
+                statusElement.textContent = "Standort erfolgreich aktualisiert!";
                 map.setView(currentLocation, 14);
-                
                 if (userMarker) userMarker.remove();
                 userMarker = L.circleMarker(currentLocation, {
-                    radius: 8,
-                    color: 'white',
-                    weight: 2,
-                    fillColor: '#4285F4',
-                    fillOpacity: 1
-                }).addTo(map)
-                  .bindPopup("Dein Standort")
-                  .openPopup();
-                
+                    radius: 8, color: 'white', weight: 2, fillColor: '#4285F4', fillOpacity: 1
+                }).addTo(map).bindPopup("Dein Standort").openPopup();
                 renderLocationsList();
             },
             () => {
@@ -70,65 +64,96 @@ function getUserLocation() {
     }
 }
 
-// Wandelt Adressen in Koordinaten um (Geocoding) mit Nominatim
-function geocodeAllLocations() {
-    locations.forEach((location, index) => {
-        // Kleine Verzögerung, um die Nominatim-API-Richtlinien einzuhalten (max 1 Anfrage/Sekunde)
-        setTimeout(() => {
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location.address)}`)
-                .then(response => response.json())
-                .then(data => {
+// Lädt Koordinaten und "besucht"-Status aus dem Local Storage oder startet Geocoding
+function loadLocationsAndState() {
+    const cachedCoords = JSON.parse(localStorage.getItem('geocodedLocations'));
+    const visitedStatus = JSON.parse(localStorage.getItem('visitedLocations'));
+
+    // "besucht"-Status wiederherstellen
+    if (visitedStatus && visitedStatus.length === locations.length) {
+        locations.forEach((loc, index) => loc.visited = visitedStatus[index]);
+    }
+
+    // Koordinaten aus Cache laden oder neu abfragen
+    if (cachedCoords && cachedCoords.length === locations.length) {
+        console.log("Lade Koordinaten aus dem Cache.");
+        locations.forEach((loc, index) => loc.coords = cachedCoords[index]);
+        addMarkersToMap();
+        renderLocationsList();
+    } else {
+        console.log("Keine gültigen Koordinaten im Cache. Starte Geocoding.");
+        geocodeAllLocations();
+    }
+}
+
+// Fügt Marker für alle Standorte zur Karte hinzu
+function addMarkersToMap() {
+    locations.forEach(location => {
+        if (location.coords) {
+            L.marker(location.coords).addTo(map)
+                .bindPopup(`<b>Klasse ${location.class} - ${location.name}</b><br>${location.address}`);
+        }
+    });
+}
+
+// Wandelt Adressen in Koordinaten um und speichert sie
+async function geocodeAllLocations() {
+    const geocodingPromises = locations.map((location, index) => {
+        return new Promise(resolve => {
+            setTimeout(async () => {
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location.address)}`);
+                    const data = await response.json();
                     if (data && data.length > 0) {
-                        location.coords = L.latLng(data[0].lat, data[0].lon);
-                        L.marker(location.coords).addTo(map)
-                            .bindPopup(`<b>Klasse ${location.class} - ${location.name}</b><br>${location.address}`);
+                        location.coords = { lat: data[0].lat, lon: data[0].lon };
                     } else {
                         console.error(`Geocode war nicht erfolgreich für ${location.address}`);
+                        location.coords = null;
                     }
-                })
-                .catch(error => console.error('Error:', error));
-        }, index * 1000); // 1 Sekunde Verzögerung pro Anfrage
+                } catch (error) {
+                    console.error('Error:', error);
+                    location.coords = null;
+                }
+                resolve();
+            }, index * 1000); // 1 Sekunde Verzögerung pro Anfrage
+        });
     });
+
+    await Promise.all(geocodingPromises);
+    console.log("Geocoding abgeschlossen.");
+    
+    // Speichere die neuen Koordinaten im Local Storage
+    const coordsToCache = locations.map(loc => loc.coords);
+    localStorage.setItem('geocodedLocations', JSON.stringify(coordsToCache));
+    
+    addMarkersToMap();
+    renderLocationsList();
 }
 
 // Rendert die Liste der Standorte
 function renderLocationsList() {
     if (currentLocation) {
-        // Entfernungen berechnen
         locations.forEach(loc => {
-            if (loc.coords) {
-                loc.distance = currentLocation.distanceTo(loc.coords);
-            } else {
-                loc.distance = Infinity;
-            }
+            loc.distance = loc.coords ? currentLocation.distanceTo(L.latLng(loc.coords.lat, loc.coords.lon)) : Infinity;
         });
-        // Nach Entfernung sortieren
         locations.sort((a, b) => a.distance - b.distance);
     }
 
-    locationsListElement.innerHTML = ''; // Liste leeren
-
+    locationsListElement.innerHTML = '';
     const showAll = !hideVisitedCheckbox.checked;
 
     locations.forEach((location, index) => {
         if (showAll || !location.visited) {
             const item = document.createElement('div');
             item.className = 'location-item';
-            if (location.visited) {
-                item.classList.add('visited');
-            }
+            if (location.visited) item.classList.add('visited');
 
-            const distanceText = location.distance !== Infinity && location.distance != null
-                ? `<p class="distance">ca. ${(location.distance / 1000).toFixed(1)} km entfernt</p>`
-                : '';
-            
+            const distanceText = loc.distance !== Infinity && loc.distance != null ? `<p class="distance">ca. ${(loc.distance / 1000).toFixed(1)} km entfernt</p>` : '';
             const noteText = location.note ? ` (${location.note})` : '';
-
-            // Link zu Google Maps für die Navigation beibehalten, da dies eine sehr verbreitete App ist.
             const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(location.address)}`;
 
             item.innerHTML = `
-                <input type="checkbox" data-index="${index}" ${location.visited ? 'checked' : ''}>
+                <input type="checkbox" data-id="${location.address}" ${location.visited ? 'checked' : ''}>
                 <div class="info">
                     ${distanceText}
                     <h3>Klasse ${location.class} (${location.name})</h3>
@@ -140,13 +165,15 @@ function renderLocationsList() {
         }
     });
 
-    // Event Listener für die neuen Checkboxen hinzufügen
     document.querySelectorAll('.location-item input[type="checkbox"]').forEach(checkbox => {
         checkbox.addEventListener('change', (e) => {
-            const index = e.target.getAttribute('data-index');
-            locations[index].visited = e.target.checked;
-            saveVisitedState();
-            renderLocationsList();
+            const address = e.target.getAttribute('data-id');
+            const changedLocation = locations.find(loc => loc.address === address);
+            if (changedLocation) {
+                changedLocation.visited = e.target.checked;
+                saveVisitedState();
+                renderLocationsList();
+            }
         });
     });
 }
@@ -155,14 +182,4 @@ function renderLocationsList() {
 function saveVisitedState() {
     const visitedStatus = locations.map(loc => loc.visited);
     localStorage.setItem('visitedLocations', JSON.stringify(visitedStatus));
-}
-
-// Lädt den "besucht"-Status aus dem Local Storage
-function loadVisitedState() {
-    const visitedStatus = JSON.parse(localStorage.getItem('visitedLocations'));
-    if (visitedStatus && visitedStatus.length === locations.length) {
-        locations.forEach((loc, index) => {
-            loc.visited = visitedStatus[index];
-        });
-    }
 }
