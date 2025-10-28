@@ -23,7 +23,12 @@ let locationMarkers = {}; // Objekt zum Speichern der Marker
 
 // Initialisiert die App
 document.addEventListener('DOMContentLoaded', () => {
-    initMap();
+    try {
+        initMap();
+    } catch (e) {
+        console.error("Map initialization failed:", e);
+    }
+    setupMobileOverlay();
     loadPreferencesAndData();
     getUserLocation();
 
@@ -48,38 +53,111 @@ document.addEventListener('DOMContentLoaded', () => {
             locationsListElement.classList.remove('open');
         }
     });
+});
+
+// Setup mobile overlay structure and gestures
+function setupMobileOverlay() {
+    // Create mobile overlay structure
+    const mobileHandle = document.createElement('div');
+    mobileHandle.className = 'mobile-handle';
     
-    // Handle swipe gestures for mobile overlay
+    const mobileControls = document.createElement('div');
+    mobileControls.className = 'mobile-controls';
+    mobileControls.innerHTML = `
+        <label>
+            <input type="checkbox" id="hide-visited-mobile">
+            Besuchte Standorte ausblenden
+        </label>
+        <button id="refresh-btn-mobile" style="margin-top: 10px; width: 100%; padding: 10px; border: 1px solid #007bff; background-color: #007bff; color: white; border-radius: 5px; cursor: pointer; font-size: 0.9em;">Standort aktualisieren</button>
+    `;
+    
+    const scrollContainer = document.createElement('div');
+    scrollContainer.className = 'locations-scroll-container';
+    
+    // Move existing content to scroll container
+    while (locationsListElement.firstChild) {
+        scrollContainer.appendChild(locationsListElement.firstChild);
+    }
+    
+    // Build new structure
+    locationsListElement.appendChild(mobileHandle);
+    locationsListElement.appendChild(mobileControls);
+    locationsListElement.appendChild(scrollContainer);
+    
+    // Sync mobile controls with desktop controls
+    const mobileCheckbox = document.getElementById('hide-visited-mobile');
+    const mobileRefreshBtn = document.getElementById('refresh-btn-mobile');
+    
+    mobileCheckbox.checked = hideVisitedCheckbox.checked;
+    
+    mobileCheckbox.addEventListener('change', () => {
+        hideVisitedCheckbox.checked = mobileCheckbox.checked;
+        localStorage.setItem('hideVisitedPreference', mobileCheckbox.checked);
+        updateMapMarkers();
+        renderLocationsList();
+    });
+    
+    mobileRefreshBtn.addEventListener('click', () => {
+        statusElement.textContent = "Standort wird neu ermittelt...";
+        getUserLocation();
+    });
+    
+    // Handle swipe gestures on the handle area
     let startY = 0;
     let currentY = 0;
+    let isDragging = false;
     
-    locationsListElement.addEventListener('touchstart', (e) => {
+    mobileHandle.addEventListener('touchstart', (e) => {
         startY = e.touches[0].clientY;
+        isDragging = true;
     }, { passive: true });
     
-    locationsListElement.addEventListener('touchmove', (e) => {
+    mobileHandle.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
         currentY = e.touches[0].clientY;
-        const diff = startY - currentY;
-        
-        // Only allow closing by swiping down when at the top of the scroll
-        if (diff < 0 && locationsListElement.scrollTop === 0) {
-            e.preventDefault();
-        }
-    }, { passive: false });
+    }, { passive: true });
     
-    locationsListElement.addEventListener('touchend', (e) => {
+    mobileHandle.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+        
         const diff = startY - currentY;
         
-        // Swipe down to close (when at top of scroll)
-        if (diff < -50 && locationsListElement.scrollTop === 0) {
+        // Swipe down to close
+        if (diff < -50 && locationsListElement.classList.contains('open')) {
             locationsListElement.classList.remove('open');
         }
         // Swipe up to open
         else if (diff > 50 && !locationsListElement.classList.contains('open')) {
             locationsListElement.classList.add('open');
         }
+        
+        isDragging = false;
     });
-});
+    
+    // Also handle swipe on scroll container when at top
+    scrollContainer.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+    }, { passive: true });
+    
+    scrollContainer.addEventListener('touchmove', (e) => {
+        currentY = e.touches[0].clientY;
+        const diff = startY - currentY;
+        
+        // Prevent scrolling when trying to close and at top
+        if (diff < 0 && scrollContainer.scrollTop === 0 && locationsListElement.classList.contains('open')) {
+            // Allow swipe down to close
+        }
+    }, { passive: true });
+    
+    scrollContainer.addEventListener('touchend', (e) => {
+        const diff = startY - currentY;
+        
+        // Swipe down to close when at top of scroll
+        if (diff < -50 && scrollContainer.scrollTop === 0 && locationsListElement.classList.contains('open')) {
+            locationsListElement.classList.remove('open');
+        }
+    });
+}
 
 // Initialisiert die Leaflet-Karte
 function initMap() {
@@ -137,7 +215,9 @@ function loadPreferencesAndData() {
         renderLocationsList();
     } else {
         console.log("Keine gültigen Koordinaten im Cache. Starte Geocoding.");
-        locationsListElement.innerHTML = '<p>Lade Standort-Koordinaten... Dies kann einen Moment dauern.</p>';
+        const scrollContainer = locationsListElement.querySelector('.locations-scroll-container');
+        const targetElement = scrollContainer || locationsListElement;
+        targetElement.innerHTML = '<p>Lade Standort-Koordinaten... Dies kann einen Moment dauern.</p>';
         geocodeAllLocations();
     }
 }
@@ -213,7 +293,11 @@ function renderLocationsList() {
         });
     }
 
-    locationsListElement.innerHTML = '';
+    // Find the scroll container (or use locationsListElement for desktop)
+    const scrollContainer = locationsListElement.querySelector('.locations-scroll-container');
+    const targetElement = scrollContainer || locationsListElement;
+    
+    targetElement.innerHTML = '';
     const showAll = !hideVisitedCheckbox.checked;
 
     locations.forEach(location => {
@@ -238,11 +322,17 @@ function renderLocationsList() {
                     </div>
                 </div>
             `;
-            locationsListElement.appendChild(item);
+            targetElement.appendChild(item);
         }
     });
 
     addEventListenersToListItems();
+    
+    // Sync mobile checkbox state if it exists
+    const mobileCheckbox = document.getElementById('hide-visited-mobile');
+    if (mobileCheckbox) {
+        mobileCheckbox.checked = hideVisitedCheckbox.checked;
+    }
 }
 
 // Fügt alle Event-Listener für die Listeneinträge hinzu
