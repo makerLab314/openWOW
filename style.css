@@ -69,6 +69,10 @@ h1 {
     /* Default desktop styles */
 }
 
+.mobile-handle, .mobile-controls, .locations-scroll-container {
+    display: none;
+}
+
 .location-item {
     background-color: #fff;
     border-radius: 8px;
@@ -210,9 +214,7 @@ h1 {
     }
     
     .controls {
-        border-radius: 0;
-        margin: 0;
-        flex-shrink: 0;
+        display: none;
     }
     
     #status {
@@ -236,11 +238,11 @@ h1 {
         border-top-right-radius: 20px;
         box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
         max-height: 70vh;
-        overflow-y: auto;
-        padding: 20px 15px;
         z-index: 1000;
         transform: translateY(calc(100% - 60px));
         transition: transform 0.3s ease-out;
+        display: flex;
+        flex-direction: column;
     }
     
     #locations-list.open {
@@ -257,6 +259,58 @@ h1 {
         height: 4px;
         background-color: #ccc;
         border-radius: 2px;
+    }
+    
+    .mobile-handle {
+        display: block;
+        height: 40px;
+        cursor: grab;
+        flex-shrink: 0;
+        touch-action: none;
+    }
+    
+    .mobile-controls {
+        display: block;
+        padding: 10px 15px;
+        border-bottom: 1px solid #e0e0e0;
+        flex-shrink: 0;
+        background-color: white;
+    }
+    
+    .mobile-controls label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    
+    .mobile-controls input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
+    }
+    
+    #refresh-btn-mobile {
+        margin-top: 10px;
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #007bff;
+        background-color: #007bff;
+        color: white;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background-color 0.2s;
+    }
+    
+    #refresh-btn-mobile:active {
+        background-color: #0056b3;
+    }
+    
+    .locations-scroll-container {
+        display: block;
+        overflow-y: auto;
+        flex: 1;
+        padding: 0 15px 20px 15px;
     }
     
     .location-item {
