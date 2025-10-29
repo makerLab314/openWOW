@@ -17,6 +17,7 @@ const statusElement = document.getElementById('status');
 const refreshButton = document.getElementById('refresh-btn');
 const mapElement = document.getElementById('map');
 const overlayToggle = document.getElementById('overlay-toggle');
+const themeToggle = document.getElementById('theme-toggle');
 let map, userMarker;
 let currentLocation = null;
 let locationMarkers = {}; // Objekt zum Speichern der Marker
@@ -31,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupMobileOverlay();
     loadPreferencesAndData();
     getUserLocation();
+    initThemeToggle();
 
     hideVisitedCheckbox.addEventListener('change', () => {
         localStorage.setItem('hideVisitedPreference', hideVisitedCheckbox.checked);
@@ -54,6 +56,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// Initialize theme toggle functionality
+function initThemeToggle() {
+    // Load saved theme preference
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        updateThemeIcon();
+    }
+    
+    // Add click event listener
+    themeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+        updateThemeIcon();
+    });
+}
+
+// Update theme toggle icon
+function updateThemeIcon() {
+    const icon = themeToggle.querySelector('.theme-toggle-icon');
+    if (document.body.classList.contains('dark-mode')) {
+        icon.textContent = '☀️';
+    } else {
+        icon.textContent = '🌙';
+    }
+}
 
 // Setup mobile overlay structure and gestures
 function setupMobileOverlay() {
