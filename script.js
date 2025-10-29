@@ -18,9 +18,10 @@ const refreshButton = document.getElementById('refresh-btn');
 const mapElement = document.getElementById('map');
 const overlayToggle = document.getElementById('overlay-toggle');
 const themeToggle = document.getElementById('theme-toggle');
-let map, userMarker;
+let map, userMarker, copilotMarker;
 let currentLocation = null;
 let locationMarkers = {}; // Objekt zum Speichern der Marker
+let copilotAnimationInterval = null;
 
 // Initialisiert die App
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('hideVisitedPreference', hideVisitedCheckbox.checked);
         updateMapMarkers();
         renderLocationsList();
+        restartCopilotAnimation(); // Restart animation with new visible markers
     });
     refreshButton.addEventListener('click', () => {
         statusElement.textContent = "Standort wird neu ermittelt...";
@@ -135,60 +137,122 @@ function setupMobileOverlay() {
         getUserLocation();
     });
     
-    // Handle swipe gestures on the handle area
+    // Handle swipe gestures on the handle area with finger following
     let startY = 0;
     let currentY = 0;
     let isDragging = false;
+    let initialTransform = 0;
+    const maxHeight = window.innerHeight * 0.7; // 70vh
+    const closedPosition = maxHeight - 60; // Same as CSS translateY value
     
     mobileHandle.addEventListener('touchstart', (e) => {
         startY = e.touches[0].clientY;
         isDragging = true;
+        
+        // Get current transform value
+        const isOpen = locationsListElement.classList.contains('open');
+        initialTransform = isOpen ? 0 : closedPosition;
+        
+        // Disable transition during drag for immediate following
+        locationsListElement.style.transition = 'none';
     }, { passive: true });
     
     mobileHandle.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
         currentY = e.touches[0].clientY;
+        
+        const deltaY = currentY - startY;
+        let newTransform = initialTransform + deltaY;
+        
+        // Clamp the transform value between 0 (fully open) and closedPosition (closed)
+        newTransform = Math.max(0, Math.min(closedPosition, newTransform));
+        
+        locationsListElement.style.transform = `translateY(${newTransform}px)`;
     }, { passive: true });
     
     mobileHandle.addEventListener('touchend', (e) => {
         if (!isDragging) return;
         
-        const diff = startY - currentY;
+        // Re-enable transition for snap animation
+        locationsListElement.style.transition = '';
         
-        // Swipe down to close
-        if (diff < -50 && locationsListElement.classList.contains('open')) {
-            locationsListElement.classList.remove('open');
-        }
-        // Swipe up to open
-        else if (diff > 50 && !locationsListElement.classList.contains('open')) {
+        const deltaY = currentY - startY;
+        const finalTransform = initialTransform + deltaY;
+        
+        // Determine if we should open or close based on 50% threshold
+        const threshold = closedPosition / 2;
+        
+        if (finalTransform < threshold) {
+            // Open (transform to 0)
             locationsListElement.classList.add('open');
+            locationsListElement.style.transform = '';
+        } else {
+            // Close (transform to closedPosition)
+            locationsListElement.classList.remove('open');
+            locationsListElement.style.transform = '';
         }
         
         isDragging = false;
     });
     
-    // Also handle swipe on scroll container when at top
+    // Also handle swipe on scroll container when at top with finger following
+    let scrollStartY = 0;
+    let scrollCurrentY = 0;
+    let scrollIsDragging = false;
+    let scrollInitialTransform = 0;
+    
     scrollContainer.addEventListener('touchstart', (e) => {
-        startY = e.touches[0].clientY;
+        scrollStartY = e.touches[0].clientY;
+        if (scrollContainer.scrollTop === 0) {
+            scrollIsDragging = true;
+            scrollInitialTransform = 0; // When open, transform is 0
+            scrollCurrentY = scrollStartY;
+        }
     }, { passive: true });
     
     scrollContainer.addEventListener('touchmove', (e) => {
-        currentY = e.touches[0].clientY;
-        const diff = startY - currentY;
+        scrollCurrentY = e.touches[0].clientY;
+        const deltaY = scrollCurrentY - scrollStartY;
         
-        // Prevent scrolling when trying to close and at top
-        if (diff < 0 && scrollContainer.scrollTop === 0 && locationsListElement.classList.contains('open')) {
-            // Allow swipe down to close
+        // Only handle drag down when at top of scroll and trying to close
+        if (deltaY > 0 && scrollContainer.scrollTop === 0 && locationsListElement.classList.contains('open')) {
+            e.preventDefault(); // Prevent scroll
+            
+            if (scrollIsDragging) {
+                let newTransform = scrollInitialTransform + deltaY;
+                // Clamp between 0 and closedPosition
+                newTransform = Math.max(0, Math.min(closedPosition, newTransform));
+                
+                locationsListElement.style.transition = 'none';
+                locationsListElement.style.transform = `translateY(${newTransform}px)`;
+            }
         }
-    }, { passive: true });
+    });
     
     scrollContainer.addEventListener('touchend', (e) => {
-        const diff = startY - currentY;
+        if (!scrollIsDragging) return;
         
-        // Swipe down to close when at top of scroll
-        if (diff < -50 && scrollContainer.scrollTop === 0 && locationsListElement.classList.contains('open')) {
-            locationsListElement.classList.remove('open');
+        const deltaY = scrollCurrentY - scrollStartY;
+        
+        // Only process if we were dragging down from the top
+        if (deltaY > 0 && scrollContainer.scrollTop === 0) {
+            locationsListElement.style.transition = '';
+            
+            const finalTransform = scrollInitialTransform + deltaY;
+            const threshold = closedPosition / 2;
+            
+            if (finalTransform < threshold) {
+                // Stay open
+                locationsListElement.classList.add('open');
+                locationsListElement.style.transform = '';
+            } else {
+                // Close
+                locationsListElement.classList.remove('open');
+                locationsListElement.style.transform = '';
+            }
         }
+        
+        scrollIsDragging = false;
     });
 }
 
@@ -265,6 +329,7 @@ function addMarkersToMap() {
         }
     });
     updateMapMarkers(); // Initiale Filterung basierend auf den Einstellungen
+    initCopilotAnimation(); // Start Copilot animation
 }
 
 // Aktualisiert die Sichtbarkeit der Marker basierend auf dem "hide visited" Status
@@ -282,6 +347,122 @@ function updateMapMarkers() {
             }
         }
     });
+}
+
+// Creates and animates the GitHub Copilot icon between location markers
+function initCopilotAnimation() {
+    // Create a custom icon for GitHub Copilot
+    const copilotIcon = L.divIcon({
+        className: 'copilot-marker',
+        html: `<div class="copilot-icon">
+            <svg width="32" height="32" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 0C3.58 0 0 3.58 0 8C0 11.54 2.29 14.53 5.47 15.59C5.87 15.66 6.02 15.42 6.02 15.21C6.02 15.02 6.01 14.39 6.01 13.72C4 14.09 3.48 13.23 3.32 12.78C3.23 12.55 2.84 11.84 2.5 11.65C2.22 11.5 1.82 11.13 2.49 11.12C3.12 11.11 3.57 11.7 3.72 11.94C4.44 13.15 5.59 12.81 6.05 12.6C6.12 12.08 6.33 11.73 6.56 11.53C4.78 11.33 2.92 10.64 2.92 7.58C2.92 6.71 3.23 5.99 3.74 5.43C3.66 5.23 3.38 4.41 3.82 3.31C3.82 3.31 4.49 3.1 6.02 4.13C6.66 3.95 7.34 3.86 8.02 3.86C8.7 3.86 9.38 3.95 10.02 4.13C11.55 3.09 12.22 3.31 12.22 3.31C12.66 4.41 12.38 5.23 12.3 5.43C12.81 5.99 13.12 6.7 13.12 7.58C13.12 10.65 11.25 11.33 9.47 11.53C9.76 11.78 10.01 12.26 10.01 13.01C10.01 14.08 10 14.94 10 15.21C10 15.42 10.15 15.67 10.55 15.59C13.71 14.53 16 11.53 16 8C16 3.58 12.42 0 8 0Z" fill="currentColor"/>
+            </svg>
+        </div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+    });
+    
+    // Start the animation
+    animateCopilot(copilotIcon);
+}
+
+function animateCopilot(copilotIcon) {
+    // Get all visible location markers
+    const visibleLocations = locations.filter(loc => {
+        return loc.coords && (!hideVisitedCheckbox.checked || !loc.visited);
+    });
+    
+    if (visibleLocations.length === 0) {
+        return;
+    }
+    
+    let currentLocationIndex = 0;
+    
+    function jumpToNextLocation() {
+        // Remove old marker if it exists
+        if (copilotMarker) {
+            map.removeLayer(copilotMarker);
+        }
+        
+        // Pick a random location
+        const randomIndex = Math.floor(Math.random() * visibleLocations.length);
+        const targetLocation = visibleLocations[randomIndex];
+        
+        if (!targetLocation.coords) return;
+        
+        // Add copilot marker at the location
+        const markerElement = L.marker(
+            [targetLocation.coords.lat, targetLocation.coords.lon],
+            { icon: copilotIcon, zIndexOffset: 1000 }
+        ).addTo(map);
+        
+        copilotMarker = markerElement;
+        
+        // Get the DOM element and apply animations
+        setTimeout(() => {
+            const copilotElement = markerElement.getElement();
+            if (copilotElement) {
+                const copilotDiv = copilotElement.querySelector('.copilot-icon');
+                if (copilotDiv) {
+                    // Random rotation animation (looking around)
+                    const randomRotations = [
+                        { angle: -15, duration: 0.3 },
+                        { angle: 15, duration: 0.3 },
+                        { angle: -10, duration: 0.2 },
+                        { angle: 0, duration: 0.2 }
+                    ];
+                    
+                    let totalDuration = 0;
+                    randomRotations.forEach((rotation, index) => {
+                        setTimeout(() => {
+                            copilotDiv.style.transform = `rotate(${rotation.angle}deg) scale(1.1)`;
+                            copilotDiv.style.transition = `transform ${rotation.duration}s ease-in-out`;
+                        }, totalDuration * 1000);
+                        totalDuration += rotation.duration;
+                    });
+                    
+                    // After looking around, turn away
+                    setTimeout(() => {
+                        copilotDiv.style.transform = 'rotate(180deg) scale(0.9)';
+                        copilotDiv.style.transition = 'transform 0.4s ease-in-out';
+                    }, (totalDuration + 0.5) * 1000);
+                }
+            }
+        }, 100);
+        
+        // Schedule next jump after a random interval (3-8 seconds)
+        const nextJumpDelay = 3000 + Math.random() * 5000;
+        copilotAnimationInterval = setTimeout(jumpToNextLocation, nextJumpDelay);
+    }
+    
+    // Start the animation
+    jumpToNextLocation();
+}
+
+// Stop and restart Copilot animation when markers are updated
+function restartCopilotAnimation() {
+    if (copilotAnimationInterval) {
+        clearTimeout(copilotAnimationInterval);
+    }
+    if (copilotMarker) {
+        map.removeLayer(copilotMarker);
+        copilotMarker = null;
+    }
+    
+    // Create the copilot icon and start animation
+    const copilotIcon = L.divIcon({
+        className: 'copilot-marker',
+        html: `<div class="copilot-icon">
+            <svg width="32" height="32" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 0C3.58 0 0 3.58 0 8C0 11.54 2.29 14.53 5.47 15.59C5.87 15.66 6.02 15.42 6.02 15.21C6.02 15.02 6.01 14.39 6.01 13.72C4 14.09 3.48 13.23 3.32 12.78C3.23 12.55 2.84 11.84 2.5 11.65C2.22 11.5 1.82 11.13 2.49 11.12C3.12 11.11 3.57 11.7 3.72 11.94C4.44 13.15 5.59 12.81 6.05 12.6C6.12 12.08 6.33 11.73 6.56 11.53C4.78 11.33 2.92 10.64 2.92 7.58C2.92 6.71 3.23 5.99 3.74 5.43C3.66 5.23 3.38 4.41 3.82 3.31C3.82 3.31 4.49 3.1 6.02 4.13C6.66 3.95 7.34 3.86 8.02 3.86C8.7 3.86 9.38 3.95 10.02 4.13C11.55 3.09 12.22 3.31 12.22 3.31C12.66 4.41 12.38 5.23 12.3 5.43C12.81 5.99 13.12 6.7 13.12 7.58C13.12 10.65 11.25 11.33 9.47 11.53C9.76 11.78 10.01 12.26 10.01 13.01C10.01 14.08 10 14.94 10 15.21C10 15.42 10.15 15.67 10.55 15.59C13.71 14.53 16 11.53 16 8C16 3.58 12.42 0 8 0Z" fill="currentColor"/>
+            </svg>
+        </div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+    });
+    
+    animateCopilot(copilotIcon);
 }
 
 // Wandelt Adressen in Koordinaten um und speichert sie
@@ -379,6 +560,7 @@ function addEventListenersToListItems() {
                 saveVisitedState();
                 updateMapMarkers();
                 renderLocationsList();
+                restartCopilotAnimation(); // Restart animation when visited status changes
             }
         });
     });
