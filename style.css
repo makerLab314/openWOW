@@ -5,6 +5,159 @@ body {
     color: #333;
     scroll-behavior: smooth; /* Für sanftes Scrollen */
     overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: #0a0a0a;
+    color: #00ff00;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3 {
+    color: #00ff00;
+    text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00;
+}
+
+body.dark-mode .container {
+    background-color: transparent;
+}
+
+body.dark-mode #map {
+    filter: invert(1) hue-rotate(180deg);
+    border: 2px solid #00ff00;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+body.dark-mode .controls {
+    background-color: #1a1a1a;
+    border: 1px solid #00ff00;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+body.dark-mode .location-item {
+    background-color: #1a1a1a;
+    border: 1px solid #00ff00;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+}
+
+body.dark-mode .location-item:hover {
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+}
+
+body.dark-mode .location-item.visited {
+    background-color: #0f0f0f;
+    border-color: #006600;
+}
+
+body.dark-mode .info p {
+    color: #00cc00;
+}
+
+body.dark-mode .distance {
+    color: #00ff00;
+    text-shadow: 0 0 5px #00ff00;
+}
+
+body.dark-mode #status {
+    color: #00cc00;
+}
+
+body.dark-mode #refresh-btn,
+body.dark-mode #refresh-btn-mobile {
+    background-color: #003300;
+    border-color: #00ff00;
+    color: #00ff00;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+body.dark-mode #refresh-btn:hover,
+body.dark-mode #refresh-btn-mobile:active {
+    background-color: #004400;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+body.dark-mode .map-link {
+    background-color: #001a00;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+}
+
+body.dark-mode .map-link:hover {
+    background-color: #002200;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+}
+
+body.dark-mode .gmaps-link {
+    background-color: #001a00;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+}
+
+body.dark-mode .gmaps-link:hover {
+    background-color: #002200;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+}
+
+body.dark-mode .overlay-toggle {
+    background-color: #003300;
+    border: 2px solid #00ff00;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+body.dark-mode #locations-list {
+    background-color: #0a0a0a;
+    border-top: 2px solid #00ff00;
+    box-shadow: 0 -4px 20px rgba(0, 255, 0, 0.3);
+}
+
+body.dark-mode #locations-list::before {
+    background-color: #00ff00;
+    box-shadow: 0 0 5px #00ff00;
+}
+
+body.dark-mode .mobile-controls {
+    background-color: #0a0a0a;
+    border-bottom: 1px solid #00ff00;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    z-index: 1002;
+    font-size: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .theme-toggle {
+    background-color: #003300;
+    border: 2px solid #00ff00;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+body.dark-mode .theme-toggle:hover {
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.7);
 }
 
 .container {
@@ -315,5 +468,13 @@ h1 {
     
     .location-item {
         border-radius: 12px;
+    }
+    
+    .theme-toggle {
+        top: 15px;
+        right: 15px;
+        width: 45px;
+        height: 45px;
+        font-size: 20px;
     }
 }
