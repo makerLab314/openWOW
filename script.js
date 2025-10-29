@@ -63,8 +63,9 @@ function initThemeToggle() {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-mode');
-        updateThemeIcon();
     }
+    // Update icon regardless of theme to ensure sync
+    updateThemeIcon();
     
     // Add click event listener
     themeToggle.addEventListener('click', () => {
@@ -78,10 +79,12 @@ function initThemeToggle() {
 // Update theme toggle icon
 function updateThemeIcon() {
     const icon = themeToggle.querySelector('.theme-toggle-icon');
-    if (document.body.classList.contains('dark-mode')) {
-        icon.textContent = '☀️';
-    } else {
-        icon.textContent = '🌙';
+    if (icon) {
+        if (document.body.classList.contains('dark-mode')) {
+            icon.textContent = '☀️';
+        } else {
+            icon.textContent = '🌙';
+        }
     }
 }
 
